@@ -16,6 +16,8 @@ MIN_PROMINENCE = 2.0
 REL_PEAK_FLOOR = 0.4  # drop peaks under 40% of the session's median swing peak
 MIN_SWING_GAP_S = 1.2  # two contacts can't be closer than this
 CLASSIFY_WINDOW_S = (-0.6, -0.05)  # backswing + forward swing, relative to contact
+TWO_HAND_MAX_SEP = 0.5  # torso lengths between wrists
+QUIET_SPEED = 1.0  # torso lengths / s: "standing between swings"
 
 
 @dataclass
@@ -91,6 +93,39 @@ def _side_axis(world: np.ndarray, handedness: str) -> np.ndarray:
     return d / np.where(n > 1e-6, n, np.nan)
 
 
+def is_two_handed(ct: CleanTrack, contact_idx: int, handedness: str) -> bool | None:
+    """Both hands on the racket: wrists stay within TWO_HAND_MAX_SEP torso lengths (2D) just before contact.
+
+    On the samples: two-handed backhands 0.11-0.24, forehands 1.19-1.80 torso lengths.
+    """
+    dom, other = wrist_ids(handedness)
+    t0 = ct.times[contact_idx]
+    w = (ct.times >= t0 - 0.3) & (ct.times <= t0 + 0.05)
+    d = np.linalg.norm(ct.xy[w, dom] - ct.xy[w, other], axis=1) / ct.torso_px
+    d = d[np.isfinite(d)]
+    if len(d) < 3:
+        return None
+    return bool(np.median(d) < TWO_HAND_MAX_SEP)
+
+
+def facing_direction(ct: CleanTrack, handedness: str) -> np.ndarray | None:
+    """Unit horizontal vector the player faces between swings (hip-line normal on quiet frames).
+
+    Used as the 'forward' direction for contact-in-front. World axes: x right, y down, z away.
+    """
+    d = ct.world[:, R_HIP] - ct.world[:, L_HIP]
+    fwd = np.stack([-d[:, 2], np.zeros(len(d)), d[:, 0]], axis=1)  # cross(up=(0,-1,0), L->R)
+    n = np.linalg.norm(fwd, axis=1, keepdims=True)
+    fwd = fwd / np.where(n > 1e-6, n, np.nan)
+    quiet = hand_speed(ct, handedness) < QUIET_SPEED
+    for mask in (quiet & np.isfinite(fwd[:, 0]), np.isfinite(fwd[:, 0])):
+        if mask.sum() >= 10:
+            m = np.mean(fwd[mask], axis=0)
+            if np.linalg.norm(m) > 0.3:  # consistent facing, not random
+                return m / np.linalg.norm(m)
+    return None
+
+
 def classify(ct: CleanTrack, contact_idx: int, handedness: str) -> tuple[str, float, bool | None]:
     """Forehand if the dominant wrist travels on the dominant side of the torso before contact."""
     dom, other = wrist_ids(handedness)
@@ -106,10 +141,7 @@ def classify(ct: CleanTrack, contact_idx: int, handedness: str) -> tuple[str, fl
     if len(lateral) < 3:
         return "unknown", float("nan"), None
     score = float(np.median(lateral))
-    # two hands on the racket: wrists stay close through the forward swing
-    sep = np.linalg.norm(ct.world[w, dom] - ct.world[w, other], axis=1)
-    sep = sep[np.isfinite(sep)]
-    two_handed = bool(np.median(sep) < 0.15) if len(sep) >= 3 else None
+    two_handed = is_two_handed(ct, contact_idx, handedness)
     if abs(score) < 0.03:
         return "unknown", score, two_handed
     return ("forehand" if score > 0 else "backhand"), score, two_handed
