@@ -1,0 +1,11 @@
+[server]
+maxUploadSize = 2048    # MB. 60 fps HEVC phone clips run 200+ MB
+maxMessageSize = 1024
+headless = true
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+base = "dark"
+primaryColor = "#E8D44D"

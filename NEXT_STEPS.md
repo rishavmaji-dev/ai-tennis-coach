@@ -26,8 +26,8 @@ _Resume point for the tennis stroke analyzer. Update after every major step._
 3. [x] Heavy pass around contacts and contact metrics: elbow, knee, shoulder/hip rotation, contact in front.
 4. [x] Coaching: target ranges, best-swing reference, exactly 3 fixes citing value and frame.
 5. [x] Rendering: annotated H.264 video, side-by-side swing vs reference synced at contact.
-6. [ ] Streamlit UI calling the package.
-7. [ ] Playwright screenshot of the UI with a sample uploaded.
+6. [x] Streamlit UI calling the package.
+7. [x] Playwright screenshot of the UI with a sample uploaded.
 8. [ ] Review pass and fixes.
 
 ## Done
@@ -54,6 +54,11 @@ _Resume point for the tennis stroke analyzer. Update after every major step._
   - `compare_<style>_swingNN.mp4` is half speed, synced at contact, and holds 0.5 s on the contact frame.
 - **Full CLI on the samples:** about 2 min with cached pose, about 4 min cold.
   - Cold time: Lite at ~80 fps over the whole clip, Heavy about 50 s per clip, rendering about 60 s per clip.
+
+- **UI** (`app.py`): run `.venv/Scripts/python -m streamlit run app.py`. Uploads are saved to `tmp/uploads/<sha>/` and outputs to `out/ui/<key>/`.
+- **Playwright** (`scripts/screenshot_ui.py`, real Chrome channel): run the app, then `.venv/Scripts/python scripts/screenshot_ui.py samples/forehand.mp4 --hand right`.
+  - It uploads the clip, analyzes it, and saves screenshots to `docs/screenshots/`.
+  - It checks that every `<video>` reaches readyState 4 in Chrome. Both samples pass.
 
 ## How the metrics are defined (see `metrics.py`)
 - **Contact:** the frame of peak hitting-wrist speed, re-picked on the Heavy window within ±0.15 s of the Lite estimate.
