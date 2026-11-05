@@ -28,7 +28,7 @@ _Resume point for the tennis stroke analyzer. Update after every major step._
 5. [x] Rendering: annotated H.264 video, side-by-side swing vs reference synced at contact.
 6. [x] Streamlit UI calling the package.
 7. [x] Playwright screenshot of the UI with a sample uploaded.
-8. [ ] Review pass and fixes.
+8. [~] Review pass and fixes. **Stopped partway at the user's request on 2026-11-04. See "Where the review left off".**
 
 ## Done
 - CLAUDE.md, .gitignore, git init.
@@ -68,5 +68,69 @@ _Resume point for the tennis stroke analyzer. Update after every major step._
 - **Contact in front:** the wrist minus the hip centre, projected on the session's facing direction. That direction is the hip-line normal averaged over quiet frames between swings.
 - **Hip lead:** the time the shoulders reach half their coil-to-contact turn, minus the time the hips do.
 
+## Run it
+- App: `.venv\Scripts\python -m streamlit run app.py`, then open http://localhost:8501
+- CLI: `.venv\Scripts\python analyze.py samples --hand right`
+- Tests: `.venv\Scripts\python -m pytest -q`. 18 pass.
+
+## Edge cases tested by hand (all behave correctly)
+- **Clips that fail with a clear message, no stack trace:**
+  - corrupt file
+  - empty file
+  - 0.5 s clip
+  - clip with no person
+- **Landscape 120 fps H.264 clip** (a sample segment retimed 2x, in `tmp/edge/`): 3 forehands found.
+  - Contacts map exactly onto the original clip's contacts.
+  - Hand speed doubles as expected, so timing comes from the timestamps.
+
+## Where the review left off
+The review ran as a workflow (wf_e2eda3ad-6a8) with three lenses: correctness, rules/failure paths, and video I/O. Each finding then went to a skeptic who tried to refute it.
+- The correctness and video reviewers finished.
+- The rules/failure-path reviewer had not returned when the run was stopped, so that lens is still open.
+- Repro scripts from the reviewers are in `tmp/review/` (gitignored).
+- No fixes from the review have been applied yet.
+
+**Confirmed by the skeptic (fix next):**
+1. **[medium] Heavy window too short** (`pipeline.py` `HEAVY_WINDOW_S`, `metrics.py` `COIL_SEARCH_S`).
+   - Contact refinement can move contact up to 0.15 s earlier. The 0.7 s coil search then runs past the start of the window.
+   - Backhand swings #4 and #10 get clipped rotation and forward-swing values. #10's 20°/17° turn drives backhand fixes 1 and 2.
+   - Fix: start the window at about -0.95 s, derived from the metric constants. Mark the metric missing when the search would still start before the window or the clip.
+2. **[medium] Even Savitzky-Golay window at 30 fps or lower** (`kinematics.smooth`).
+   - The window comes out as 4, which shifts every landmark half a frame later.
+   - Fix: force an odd window of at least 5. The 60 fps samples are not affected.
+3. **[low] Near-edge elbow tip** (`coaching._candidates`).
+   - It treats 180° (a straight arm) as a coaching edge and tells straight-arm hitters to bend.
+   - Fix: skip the near-edge check against physical limits.
+
+**Rejected by the skeptic:** "knee bend changes meaning when one knee is hidden". Re-measuring the hidden knee changed no fix.
+
+**Found but not yet verified (verify first, then fix):**
+4. **[high] `refine_contact` uses only the dominant wrist** (`metrics.py`).
+   - On occluded backhands it moves contact by ±0.1 s. The reviewer measured shifts of -84 to +118 ms on backhand swings 1, 2, 4, 8 and 10.
+   - Suggested fix: refine with the same `hand_speed` signal used for detection, and keep the Lite time when the wrist is mostly hidden.
+5. **[high] `iter_frames` can return row-padded, non-contiguous arrays** (`video_io.py`).
+   - This happens when there's no rotation and the width isn't a multiple of 32.
+   - MediaPipe ignores the strides and sees a sheared image. The reviewer's portrait-coded copy of forehand.mp4 got 0% detection.
+   - Suggested fix: `np.ascontiguousarray` always. Also add a version to the pose cache key so bad cached tracks aren't reused.
+6. **[medium] Slow-motion capture tag is read but not applied** (`pipeline.py`).
+   - Example: a 240 fps capture stored at 30 fps playback makes speeds 8x too low.
+   - Suggested fix: rescale times by measured/capture, or at least warn.
+7. **[low] `measured_fps` median of quantized intervals is wrong for some timescales** (`pipeline.py`), giving the wrong fps and a false VFR flag.
+8. **[low] Comparison writer declares `rate=fps` while frames are spaced 2/fps** (`outputs.py`), which pushes the H.264 level up on large high-fps comparisons.
+
+**Also found during my own testing (not from the workflow), still to fix:**
+9. **The wrong-handedness warning doesn't fire.**
+   - Running the samples with `--hand left` mislabels strokes with no warning.
+   - The forehand clip comes out as mixed forehand/backhand/unknown; the backhand clip as 11 "two-handed forehands".
+   - Cause: the check only votes on one-handed swings, and needs the selected wrist to be visible.
+   - Plan:
+     - Also vote "wrong hand" when the selected wrist is untracked at contact but the other wrist is tracked.
+     - Warn when most swings are two-handed forehands.
+
+**Remaining review work:** rerun the rules/failure-path lens (Streamlit session state, rendering exceptions inside `api.run`, offline model download).
+
 ## Known issues
-- (none yet)
+- Contact is the frame of peak hand speed (no ball in the samples). In real strokes it falls slightly before impact, so the hand sits near the hip. Contact-in-front values read low compared with true impact.
+- Hip-lead timing is single-camera 3D. Treat values within ±20 ms (about one frame at 60 fps) as "together".
+- Some backhand swings in the sample are low-effort (#4, #7, #10). They are real detections, not errors.
+- Guideline ranges in `targets.py` are general coaching values, not calibrated to a player.
