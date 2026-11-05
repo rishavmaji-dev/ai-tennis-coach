@@ -1,0 +1,8 @@
+# Python 3.11 (Windows). Create the venv with: py -3.11 -m venv .venv
+mediapipe==1.2.2              # Tasks API PoseLandmarker; pulls opencv-contrib-python
+opencv-contrib-python==5.0.0.93  # drawing only. Do NOT also install opencv-python / -headless
+av==18.1.0                    # PyAV: HEVC decode + libx264 encode (19.x needs Python 3.12+)
+numpy==2.4.6
+scipy==1.17.1
+streamlit==1.66.1
+pandas==3.1.1
