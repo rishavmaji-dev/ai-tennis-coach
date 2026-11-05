@@ -54,5 +54,7 @@ def put_label(rgb: np.ndarray, text: str, org: tuple[int, int], size: float | No
     th = max(1, int(round(s * 2)))
     (tw, tht), base = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, s, th)
     x, y = org
+    x = int(min(max(x, 4), rgb.shape[1] - tw - 6))  # keep the whole label inside the frame
+    y = int(min(max(y, tht + 6), rgb.shape[0] - base - 4))
     cv2.rectangle(rgb, (x - 4, y - tht - 6), (x + tw + 4, y + base + 2), bg, -1)
     cv2.putText(rgb, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, s, color, th, cv2.LINE_AA)

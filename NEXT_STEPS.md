@@ -25,7 +25,7 @@ _Resume point for the tennis stroke analyzer. Update after every major step._
 2. [x] Swing detection (peak dominant-wrist speed) and forehand/backhand classification.
 3. [x] Heavy pass around contacts and contact metrics: elbow, knee, shoulder/hip rotation, contact in front.
 4. [x] Coaching: target ranges, best-swing reference, exactly 3 fixes citing value and frame.
-5. [ ] Rendering: annotated H.264 video, side-by-side swing vs reference synced at contact.
+5. [x] Rendering: annotated H.264 video, side-by-side swing vs reference synced at contact.
 6. [ ] Streamlit UI calling the package.
 7. [ ] Playwright screenshot of the UI with a sample uploaded.
 8. [ ] Review pass and fixes.
@@ -47,6 +47,13 @@ _Resume point for the tennis stroke analyzer. Update after every major step._
   - forehand.mp4: 14 forehands.
   - backhand.mp4: 11 two-handed backhands.
   - Metrics look plausible, and the 3 fixes cite their values and frames.
+
+- Rendering (`outputs.py`), all H.264 High, yuv420p, faststart:
+  - `out/<clip>/annotated.mp4` keeps true timestamps and shows a frame counter on every frame.
+  - `contacts/swing_NN.jpg` has the measured angles on the joints.
+  - `compare_<style>_swingNN.mp4` is half speed, synced at contact, and holds 0.5 s on the contact frame.
+- **Full CLI on the samples:** about 2 min with cached pose, about 4 min cold.
+  - Cold time: Lite at ~80 fps over the whole clip, Heavy about 50 s per clip, rendering about 60 s per clip.
 
 ## How the metrics are defined (see `metrics.py`)
 - **Contact:** the frame of peak hitting-wrist speed, re-picked on the Heavy window within ±0.15 s of the Lite estimate.

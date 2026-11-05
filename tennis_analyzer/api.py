@@ -69,7 +69,7 @@ def run(video: str | Path, handedness: str, out_dir: str | Path, fast: bool = Fa
                     reference_session=ref_session)
 
     if render_videos:
-        from . import render
+        from . import outputs as render
         t0 = time.time()
         report.outputs.update(render.render_outputs(report, out, progress=sub(span[1], 1.0)))
         session.timings_s["render"] = time.time() - t0

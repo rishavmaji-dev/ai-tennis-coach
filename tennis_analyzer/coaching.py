@@ -70,11 +70,15 @@ def _outside(v: float, lo: float, hi: float) -> float:
 
 
 def swing_deviation(s: SwingResult, style: str) -> tuple[float, int]:
-    """(total severity in tolerance units, number of judged metrics measured)."""
+    """(total severity in tolerance units, number of judged metrics measured).
+
+    An unmeasured metric counts as one unit, so a swing can't look 'best' by hiding joints.
+    """
     total, n = 0.0, 0
     for key, (lo, hi) in RANGES[style].items():
         v = _value(s, key)
         if v is None:
+            total += 1.0
             continue
         n += 1
         total += _outside(v, lo, hi) / METRICS[key].tolerance
