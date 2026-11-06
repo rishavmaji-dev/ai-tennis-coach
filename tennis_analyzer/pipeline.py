@@ -8,12 +8,12 @@ from typing import Callable
 
 import numpy as np
 
-from .metrics import ContactMetrics, measure, refine_contact
+from .metrics import HEAVY_AFTER_S, HEAVY_BEFORE_S, ContactMetrics, measure, refine_contact
 from .pose import PoseTrack, track_pose
 from .swings import CleanTrack, Swing, clean_track, facing_direction, find_swings, hand_speed, wrist_ids
 from .video_io import VideoError, VideoInfo, probe
 
-HEAVY_WINDOW_S = (-0.75, 0.35)  # around each Lite contact: backswing coil to just after contact
+HEAVY_WINDOW_S = (-HEAVY_BEFORE_S, HEAVY_AFTER_S)  # around each Lite contact: full coil search to just after contact
 MIN_DETECTED_FRACTION = 0.05
 WARN_DETECTED_FRACTION = 0.6
 

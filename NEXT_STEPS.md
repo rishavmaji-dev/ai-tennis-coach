@@ -83,6 +83,19 @@ _Resume point for the tennis stroke analyzer. Update after every major step._
   - Contacts map exactly onto the original clip's contacts.
   - Hand speed doubles as expected, so timing comes from the timestamps.
 
+## Deadline fix list (2026-11-05): only these, in order, with no new features
+1. [x] **Backswing cut off (review #1).**
+   - The Heavy window now starts at -(COIL_SEARCH_S + CONTACT_REFINE_S + 0.1) = -0.95 s, derived in `metrics.py`.
+   - If the coil search would still start before the analyzed frames (for example, a swing at the very start of a clip), rotation, timing and forward swing are marked "not measured". They are never computed from a cut-off backswing.
+   - Backhand #10 shoulder/hip went from 20°/17° to 31°/29°. #4 forward swing went from 269 to 639 ms.
+   - Every coil search now starts at least 124 ms inside its window.
+2. [ ] Straight-arm "bend your arm" tip (review #3).
+3. [ ] Wrong-handedness warning (item 9).
+4. [ ] Backhand contact-frame timing (review #4).
+5. [ ] Re-exported portrait clips not detected (review #5).
+6. [ ] 30 fps smoothing (review #2).
+7. [ ] Finish the CLAUDE.md rules / failure-handling review.
+
 ## Where the review left off
 The review ran as a workflow (wf_e2eda3ad-6a8) with three lenses: correctness, rules/failure paths, and video I/O. Each finding then went to a skeptic who tried to refute it.
 - The correctness and video reviewers finished.

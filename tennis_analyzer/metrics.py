@@ -16,6 +16,9 @@ from .swings import CleanTrack, wrist_ids
 
 COIL_SEARCH_S = 0.7  # look this far before contact for the most-coiled position
 CONTACT_REFINE_S = 0.15  # re-pick contact as peak wrist speed within +/- this of the Lite estimate
+# The Heavy window must hold the whole coil search even after contact moves CONTACT_REFINE_S earlier.
+HEAVY_BEFORE_S = COIL_SEARCH_S + CONTACT_REFINE_S + 0.1
+HEAVY_AFTER_S = 0.35
 
 
 @dataclass
@@ -117,12 +120,20 @@ def measure(ct: CleanTrack, c: int, handedness: str, forward: np.ndarray | None,
 
     sh_yaw = K.unwrap_deg(K.yaw_deg(W[:, L_SHOULDER], W[:, R_SHOULDER]))
     hip_yaw = K.unwrap_deg(K.yaw_deg(W[:, L_HIP], W[:, R_HIP]))
-    sh_rot = _rotation_from_coil(sh_yaw, ct.times, c)
-    hip_rot = _rotation_from_coil(hip_yaw, ct.times, c)
-    if sh_rot is None:
-        missing.append("Shoulder rotation: shoulders were not tracked confidently through the backswing.")
-    if hip_rot is None:
-        missing.append("Hip rotation: hips were not tracked confidently through the backswing.")
+    # Never measure from a cut-off backswing: the coil search must fit inside the analyzed frames.
+    frame_dt = float(np.median(np.diff(ct.times))) if len(ct.times) > 1 else 0.0
+    backswing_seen = ct.times[c] - COIL_SEARCH_S >= ct.times[0] - 1.5 * frame_dt
+    if backswing_seen:
+        sh_rot = _rotation_from_coil(sh_yaw, ct.times, c)
+        hip_rot = _rotation_from_coil(hip_yaw, ct.times, c)
+        if sh_rot is None:
+            missing.append("Shoulder rotation: shoulders were not tracked confidently through the backswing.")
+        if hip_rot is None:
+            missing.append("Hip rotation: hips were not tracked confidently through the backswing.")
+    else:
+        sh_rot = hip_rot = None
+        missing.append("Shoulder/hip rotation, hip-shoulder timing and forward-swing time: the backswing started "
+                       "before the start of the clip.")
     separation = None
     if sh_rot is not None:
         ci = sh_rot[1]
@@ -146,13 +157,13 @@ def measure(ct: CleanTrack, c: int, handedness: str, forward: np.ndarray | None,
         ts = _half_turn_time(sh_yaw, ct.times, c, sh_rot[1])
         if th is not None and ts is not None:
             hip_lead = (ts - th) * 1000.0
-    if hip_lead is None:
+    if hip_lead is None and backswing_seen:
         missing.append("Hip-shoulder timing: hips or shoulders were not tracked through the forward swing.")
 
     fwd = None
     ws = K.speed(ct.xy[:, dom_w], ct.times)
     w = np.flatnonzero((ct.times >= ct.times[c] - COIL_SEARCH_S) & (ct.times <= ct.times[c] - 0.1))
-    if len(w) >= 3 and np.isfinite(ws[w]).sum() >= 3:
+    if backswing_seen and len(w) >= 3 and np.isfinite(ws[w]).sum() >= 3:
         fwd = (ct.times[c] - ct.times[w[np.nanargmin(ws[w])]]) * 1000.0
 
     wrist_speed = None
