@@ -130,6 +130,27 @@ _Resume point for the tennis stroke analyzer. Update after every major step._
    - The 60 fps samples are unchanged (window still 7) and identical to step 5.
 7. [ ] Finish the CLAUDE.md rules / failure-handling review.
 
+## Teammate clips (2026-11-05): teammate1_fh/teammate1_bh.mov and teammate2_fh/teammate2_bh.MOV, iPhone, H.264, -90° rotation, about 60 fps, right-handed
+- Output: `tmp/teammates.txt` (CLI `--no-video`). The clips are gitignored.
+- Nothing crashed. Every clip got swings, labels and 3 cited fixes, with no false handedness warning.
+- **Looks off (not fixed yet):**
+  - **A. Impossible rotations on face-on clips.** Shoulders turned 144–225° on teammate1_fh, and hips 243°/440° on teammate1_bh #1/#5.
+    - Cause: MediaPipe swaps left and right as the player turns. The shoulder line jumps 61–81° in one frame (about 4,000°/s; real rotation is at most about 17° per frame), and `unwrap_deg` counts each swap as about 180° of rotation.
+    - These values drive wrong top fixes: teammate1_fh #1 "Stop over-spinning the shoulders" and #2, and teammate1_bh #1 "Keep the hips more stable".
+    - Clean swings are plausible, for example teammate1_fh #3 at 52°.
+    - Fix plan:
+      - Track yaw as an axis: unwrap the doubled angle, so a left/right swap isn't counted as rotation.
+      - Mark rotation and timing as not measured if the line moves more than about 30° in one frame inside the coil window.
+  - **B. False swings from walking, camera panning and ready-position fidgets.**
+    - Cases: teammate2_bh #1–#4 (walking away, standing, ready position, half out of frame during a pan) and teammate1_bh #4 (ready position).
+    - Also, teammate2_bh #5 is a real two-handed backhand labeled as a forehand.
+    - The false swings create a fake "forehand" group in a backhand clip, which drives teammate2_bh fix #3.
+    - Cause: detection uses 2D hand speed in image coordinates, so body or camera motion counts as hand speed.
+    - Fix plan: detect on hand speed relative to the hip centre. That needs a re-check on all 6 clips.
+  - **C. Copy bugs.**
+    - The hip-lead consistency tip reads "a hips first by 188 ms spread".
+    - With one swing, tips read "median of 1 forehands".
+
 ## Where the review left off
 The review ran as a workflow (wf_e2eda3ad-6a8) with three lenses: correctness, rules/failure paths, and video I/O. Each finding then went to a skeptic who tried to refute it.
 - The correctness and video reviewers finished.
