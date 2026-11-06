@@ -60,3 +60,13 @@ def test_speed_uses_true_timestamps():
     t = np.array([0, 0.01, 0.03, 0.04])  # uneven frame spacing
     pos = np.stack([t * 2.0, np.zeros(4)], axis=1)  # 2 units/s
     assert K.speed(pos, t) == pytest.approx([2, 2, 2, 2])
+
+
+@pytest.mark.parametrize("fps", [24, 25, 30, 60, 120, 240])
+def test_smooth_is_centred_at_every_frame_rate(fps):
+    """A symmetric bump must stay symmetric: no half-frame shift at low frame rates."""
+    x = np.zeros(61)
+    x[30] = 1.0
+    y = K.smooth(x, fps=fps)
+    assert y == pytest.approx(y[::-1], abs=1e-9)
+    assert int(np.argmax(y)) == 30

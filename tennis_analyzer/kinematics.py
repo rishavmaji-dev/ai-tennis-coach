@@ -51,7 +51,8 @@ def fill_gaps(x: np.ndarray, times: np.ndarray, max_gap_s: float = MAX_GAP_S) ->
 def smooth(x: np.ndarray, fps: float, window_s: float = 0.1, poly: int = 2) -> np.ndarray:
     """Savitzky-Golay smoothing along axis 0, applied per finite run (NaNs preserved)."""
     x = np.asarray(x, dtype=np.float64)
-    win = max(poly + 2, int(round(window_s * fps)) | 1)
+    # Window must be odd to stay centred: an even window (4 at 30 fps) shifts everything half a frame late.
+    win = max(int(round(window_s * fps)) | 1, (poly + 2) | 1)
     flat = x.reshape(len(x), -1).copy()
     for c in range(flat.shape[1]):
         col = flat[:, c]

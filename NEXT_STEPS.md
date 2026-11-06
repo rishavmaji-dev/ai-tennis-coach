@@ -121,7 +121,13 @@ _Resume point for the tennis stroke analyzer. Update after every major step._
      - `tmp/review/fh_portrait_coded.mp4` now finds its swing at frame 79 with the same numbers as the original.
      - A cold re-run of both samples gives output identical to step 4.
      - New test `test_frames_are_packed_even_when_pyav_pads_rows` fails on the old code.
-6. [ ] 30 fps smoothing (review #2).
+6. [x] **30 fps smoothing (review #2).**
+   - The Savitzky-Golay window is now always odd and at least 5. Before, it was 4 at 24–30 fps, which shifted every landmark half a frame later.
+   - New test `test_smooth_is_centred_at_every_frame_rate` covers 24–240 fps and fails on the old code at 24, 25 and 30.
+   - 30 fps check (`tmp/edge/forehand_30fps.mp4`, every other frame of the first 25 s of forehand.mp4):
+     - all 6 swings are found at the same times as at 60 fps;
+     - most angles agree within a few degrees.
+   - The 60 fps samples are unchanged (window still 7) and identical to step 5.
 7. [ ] Finish the CLAUDE.md rules / failure-handling review.
 
 ## Where the review left off
@@ -172,7 +178,8 @@ The review ran as a workflow (wf_e2eda3ad-6a8) with three lenses: correctness, r
 
 ## Known issues
 - **Per-swing values depend on where the Heavy window starts.** The VIDEO-mode tracker re-initializes from that frame. Moving the window 0.1 s changed forehand #9's hip lead from -29 to +47 ms and elbows by about ±4°. Session medians are stable (hip lead -27 to -25 ms). Trust medians over single-swing timing values.
-- **Contact-in-front is sensitive to the exact contact frame.** At about 5 m/s, one frame (16.7 ms at 60 fps) moves the hand about 8 cm.
+- **Contact-in-front is sensitive to the exact contact frame.** At about 5 m/s, one frame moves the hand about 8 cm at 60 fps and about 16 cm at 30 fps.
+  - On the 30 fps test clip, contact-in-front differed from 60 fps by up to about ±12 cm. Prefer 60 fps or higher for that metric.
 - Contact is the frame of peak hand speed (no ball in the samples). In real strokes it falls slightly before impact, so the hand sits near the hip. Contact-in-front values read low compared with true impact.
 - Hip-lead timing is single-camera 3D. Treat values within ±20 ms (about one frame at 60 fps) as "together".
 - Some backhand swings in the sample are low-effort (#4, #7, #10). They are real detections, not errors.
