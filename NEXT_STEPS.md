@@ -89,7 +89,11 @@ _Resume point for the tennis stroke analyzer. Update after every major step._
    - If the coil search would still start before the analyzed frames (for example, a swing at the very start of a clip), rotation, timing and forward swing are marked "not measured". They are never computed from a cut-off backswing.
    - Backhand #10 shoulder/hip went from 20°/17° to 31°/29°. #4 forward swing went from 269 to 639 ms.
    - Every coil search now starts at least 124 ms inside its window.
-2. [ ] Straight-arm "bend your arm" tip (review #3).
+2. [x] **Straight-arm tip (review #3).**
+   - `Metric.physical_max` (the elbow's is 180°) marks a range end as a body limit, and the near-edge rule ignores that end.
+   - Cramped elbows are still flagged at the low end.
+   - Tests: `test_straight_arm_is_never_told_to_bend` (fails on the old code) and `test_cramped_elbow_near_low_edge_still_flagged`.
+   - Sample fixes are unchanged.
 3. [ ] Wrong-handedness warning (item 9).
 4. [ ] Backhand contact-frame timing (review #4).
 5. [ ] Re-exported portrait clips not detected (review #5).

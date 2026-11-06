@@ -211,9 +211,12 @@ def _candidates(session: SessionResult, refs: dict[str, Reference]) -> list[Fix]
                                  severity=0.5 + (spread - M.spread_limit) / M.tolerance * 0.5, **base))
                 cands[-1].detail = _render_spread(cands[-1], vals, ref)
                 continue
-            margin = min(med - lo, hi - med) / (hi - lo)
+            # Only warn about range ends that are coaching limits. A straight arm (180°) is never "too straight".
+            margin_lo = (med - lo) / (hi - lo)
+            margin_hi = (hi - med) / (hi - lo) if M.physical_max is None or hi < M.physical_max else np.inf
+            margin = min(margin_lo, margin_hi)
             if margin < 0.2:
-                direction = "low" if med - lo < hi - med else "high"
+                direction = "low" if margin_lo <= margin_hi else "high"
                 s_k, v_k = (min if direction == "low" else max)(vals, key=lambda t: t[1])
                 cands.append(Fix(rank=0, kind="near_edge", title="", detail="", swing_number=s_k.number,
                                  frame=s_k.contact_frame, time=s_k.contact_time, swing_value=v_k,

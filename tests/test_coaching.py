@@ -55,3 +55,21 @@ def test_missing_metrics_cannot_make_a_swing_best():
 def test_single_swing_has_no_own_reference():
     refs, notes = choose_references(session([swing(1)]))
     assert refs == {} and any("Only one" in n for n in notes)
+
+
+def test_straight_arm_is_never_told_to_bend():
+    one_hander = [SwingResult(number=n, stroke="backhand", two_handed=False, contact_frame=60 * n,
+                              contact_time=float(n), peak_speed=8, side_score=-0.3,
+                              metrics=metrics(elbow_angle_deg=v)) for n, v in ((1, 175), (2, 176), (3, 177))]
+    forehands = [swing(n, elbow_angle_deg=v) for n, v in ((4, 165), (5, 166), (6, 167))]
+    s = session(one_hander + forehands)
+    fixes, _ = make_fixes(s, choose_references(s)[0])
+    assert not any(f.metric == "elbow_angle_deg" for f in fixes)
+    assert not any("flex" in f.title.lower() or "bend" in f.detail.lower() and "elbow" in f.detail.lower()
+                   for f in fixes)
+
+
+def test_cramped_elbow_near_low_edge_still_flagged():
+    s = session([swing(n, elbow_angle_deg=v) for n, v in ((1, 104), (2, 105), (3, 106))])
+    fixes, _ = make_fixes(s, choose_references(s)[0])
+    assert any(f.metric == "elbow_angle_deg" and f.kind == "near_edge" for f in fixes)

@@ -17,6 +17,7 @@ class Metric:
     tolerance: float  # how far outside the range counts as one "unit" of severity
     spread_limit: float  # swing-to-swing range above this is flagged as inconsistent
     fmt: str = "{:.0f}"
+    physical_max: float | None = None  # a range end at this value is a body limit, not a coaching edge
 
     def show(self, v: float) -> str:
         if self.key == "hip_lead_ms":  # signed timing reads better in words
@@ -28,7 +29,7 @@ class Metric:
 
 
 METRICS: dict[str, Metric] = {m.key: m for m in [
-    Metric("elbow_angle_deg", "Elbow angle", "°", 10, 35),
+    Metric("elbow_angle_deg", "Elbow angle", "°", 10, 35, physical_max=180),  # 180 = fully straight
     Metric("knee_bend_deg", "Knee bend", "°", 10, 35),
     Metric("shoulder_rotation_deg", "Shoulder rotation", "°", 10, 40),
     Metric("hip_rotation_deg", "Hip rotation", "°", 10, 40),
