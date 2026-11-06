@@ -28,6 +28,7 @@ class CleanTrack:
     world: np.ndarray  # (N,33,3) m, NaN where unreliable
     fps: float
     torso_px: float
+    vis: np.ndarray | None = None  # (N,33) raw landmark visibility
 
 
 @dataclass
@@ -47,13 +48,14 @@ def clean_track(track: PoseTrack) -> CleanTrack:
     fps = 1.0 / float(np.median(np.diff(times))) if len(times) > 1 else 30.0
     xy, world = K.mask_low_confidence(track)
     torso = K.torso_length_px(xy)
+    vis = np.nan_to_num(track.img[:, :, 3], nan=0.0)
     if not np.isfinite(torso) or torso <= 0:
-        return CleanTrack(times, xy, world, fps, float("nan"))
+        return CleanTrack(times, xy, world, fps, float("nan"), vis)
     xy = K.hampel(xy, min_dev=0.25 * torso)
     world = K.hampel(world, min_dev=0.10)
     xy = K.smooth(K.fill_gaps(xy, times), fps)
     world = K.smooth(K.fill_gaps(world, times), fps)
-    return CleanTrack(times, xy, world, fps, torso)
+    return CleanTrack(times, xy, world, fps, torso, vis)
 
 
 def wrist_ids(handedness: str) -> tuple[int, int]:

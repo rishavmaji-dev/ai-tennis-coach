@@ -102,7 +102,15 @@ _Resume point for the tennis stroke analyzer. Update after every major step._
    - Results on forehand.mp4, backhand.mp4 and the landscape 120 fps clip:
      - `--hand right`: no warning on any clip.
      - `--hand left`: a warning on all three.
-4. [ ] Backhand contact-frame timing (review #4).
+4. [x] **Backhand contact timing (review #4): confirmed and fixed.**
+   - Before: refinement used only the hitting wrist. On the two-handed backhands that wrist sits just above the visibility threshold and shows glitch spikes, so contact jumped up to ±126 ms (on swings 2, 4, 8 and 10).
+   - Now (`metrics.contact_signal`):
+     - On two-handed swings, refinement uses the wrist with the higher mean visibility, which is the top hand on the sample.
+     - The refine range is ±0.25 s. The Lite peak is a plateau, and on #5 and #11 the true peak sat 0.17–0.22 s away.
+     - The Lite estimate is kept when the hands are tracked in under half the window.
+   - Verified with plots (`tmp/bh_curves.py`, `tmp/refine_check2.py`): all 11 backhand contacts sit on the clean top-hand speed peak.
+   - Forehand contact frames are identical to before, and the forehand fixes are unchanged.
+   - The Heavy window is now -1.05 s, derived from the constants.
 5. [ ] Re-exported portrait clips not detected (review #5).
 6. [ ] 30 fps smoothing (review #2).
 7. [ ] Finish the CLAUDE.md rules / failure-handling review.
@@ -154,6 +162,8 @@ The review ran as a workflow (wf_e2eda3ad-6a8) with three lenses: correctness, r
 **Remaining review work:** rerun the rules/failure-path lens (Streamlit session state, rendering exceptions inside `api.run`, offline model download).
 
 ## Known issues
+- **Per-swing values depend on where the Heavy window starts.** The VIDEO-mode tracker re-initializes from that frame. Moving the window 0.1 s changed forehand #9's hip lead from -29 to +47 ms and elbows by about ±4°. Session medians are stable (hip lead -27 to -25 ms). Trust medians over single-swing timing values.
+- **Contact-in-front is sensitive to the exact contact frame.** At about 5 m/s, one frame (16.7 ms at 60 fps) moves the hand about 8 cm.
 - Contact is the frame of peak hand speed (no ball in the samples). In real strokes it falls slightly before impact, so the hand sits near the hip. Contact-in-front values read low compared with true impact.
 - Hip-lead timing is single-camera 3D. Treat values within ±20 ms (about one frame at 60 fps) as "together".
 - Some backhand swings in the sample are low-effort (#4, #7, #10). They are real detections, not errors.

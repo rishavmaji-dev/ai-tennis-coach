@@ -194,7 +194,8 @@ def analyze_video(path: str | Path, handedness: str, fast: bool = False,
                 raise AnalysisError(str(e)) from e
             win_ct = clean_track(wtrack)
             win_ct.torso_px = ct.torso_px  # whole-clip body scale
-            c_win = refine_contact(win_ct, int(np.argmin(np.abs(win_ct.times - s.contact_time))), handedness)
+            c_win = refine_contact(win_ct, int(np.argmin(np.abs(win_ct.times - s.contact_time))), handedness,
+                                   s.two_handed)
             windows[s.number] = wtrack
         m = measure(win_ct, c_win, handedness, forward, s.two_handed)
         t_contact = float(win_ct.times[c_win])

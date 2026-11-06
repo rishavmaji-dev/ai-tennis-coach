@@ -15,7 +15,8 @@ from .pose import (L_ANKLE, L_ELBOW, L_HIP, L_KNEE, L_SHOULDER, L_WRIST, R_ANKLE
 from .swings import CleanTrack, wrist_ids
 
 COIL_SEARCH_S = 0.7  # look this far before contact for the most-coiled position
-CONTACT_REFINE_S = 0.15  # re-pick contact as peak wrist speed within +/- this of the Lite estimate
+CONTACT_REFINE_S = 0.25  # re-pick contact as peak hand speed within +/- this of the Lite estimate
+# (the Lite peak is a plateau; on the backhand sample the sharp Heavy peak sat up to 0.22 s away)
 # The Heavy window must hold the whole coil search even after contact moves CONTACT_REFINE_S earlier.
 HEAVY_BEFORE_S = COIL_SEARCH_S + CONTACT_REFINE_S + 0.1
 HEAVY_AFTER_S = 0.35
@@ -42,13 +43,36 @@ class ContactMetrics:
         return asdict(self)
 
 
-def refine_contact(ct: CleanTrack, approx_idx: int, handedness: str) -> int:
-    """Peak dominant-wrist speed near the Lite contact estimate, using the Heavy track."""
-    dom, _ = wrist_ids(handedness)
-    s = K.speed(ct.xy[:, dom], ct.times)
+def contact_signal(ct: CleanTrack, handedness: str, two_handed: bool | None,
+                   window: np.ndarray | None = None) -> np.ndarray:
+    """Hand speed used to pin contact (px/s, NaN where the hand isn't tracked).
+
+    One-handed: the hitting wrist, falling back to the other wrist only where the hitting one is lost.
+    Two-handed: both hands are on the racket and move together, so use the wrist with the higher mean
+    visibility in the window. On a two-handed backhand the hitting wrist is often half-hidden behind the
+    body (visibility just above threshold), and its speed shows glitch spikes there.
+    """
+    dom, other = wrist_ids(handedness)
+    s_dom = K.speed(ct.xy[:, dom], ct.times)
+    s_oth = K.speed(ct.xy[:, other], ct.times)
+    if not two_handed:
+        return np.where(np.isnan(s_dom), s_oth, s_dom)
+    w = slice(None) if window is None else window
+    if ct.vis is None:
+        return s_dom if np.isfinite(s_dom[w]).sum() >= np.isfinite(s_oth[w]).sum() else s_oth
+    return s_dom if ct.vis[w, dom].mean() >= ct.vis[w, other].mean() else s_oth
+
+
+def refine_contact(ct: CleanTrack, approx_idx: int, handedness: str, two_handed: bool | None = None) -> int:
+    """Peak hand speed within +/-CONTACT_REFINE_S of the Lite estimate, using the Heavy track.
+
+    Keeps the Lite estimate when the hands are tracked in less than half the refine window, so a
+    partly hidden wrist can't drag contact to the few frames where it happens to be visible.
+    """
     t0 = ct.times[approx_idx]
     w = np.flatnonzero(np.abs(ct.times - t0) <= CONTACT_REFINE_S)
-    if len(w) == 0 or np.all(np.isnan(s[w])):
+    s = contact_signal(ct, handedness, two_handed, w)
+    if len(w) == 0 or np.isfinite(s[w]).mean() < 0.5:
         return approx_idx
     return int(w[np.nanargmax(s[w])])
 
