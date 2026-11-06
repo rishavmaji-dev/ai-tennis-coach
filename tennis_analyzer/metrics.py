@@ -20,6 +20,9 @@ CONTACT_REFINE_S = 0.25  # re-pick contact as peak hand speed within +/- this of
 # The Heavy window must hold the whole coil search even after contact moves CONTACT_REFINE_S earlier.
 HEAVY_BEFORE_S = COIL_SEARCH_S + CONTACT_REFINE_S + 0.1
 HEAVY_AFTER_S = 0.35
+# Faster than this, a shoulder/hip line "turn" is MediaPipe swapping the body's left and right sides.
+# All 6 sample/teammate clips: real swings peak at 163-808 deg/s, swapped ones at 4,563-9,353 deg/s.
+MAX_TURN_RATE_DEG_S = 1500.0
 
 
 @dataclass
@@ -111,6 +114,19 @@ def _half_turn_time(yaw: np.ndarray, times: np.ndarray, c: int, coil_idx: int) -
     return float(t0 + (0.5 - p0) / (p1 - p0) * (t1 - t0)) if p1 != p0 else float(t1)
 
 
+def _side_swap(W: np.ndarray, times: np.ndarray, c: int) -> bool:
+    """True if the shoulder or hip line turns impossibly fast anywhere in the coil window (left/right swap)."""
+    w = (times >= times[c] - COIL_SEARCH_S) & (times <= times[c])
+    for a, b in ((L_SHOULDER, R_SHOULDER), (L_HIP, R_HIP)):
+        yaw = K.yaw_deg(W[:, a], W[:, b])
+        step = (np.diff(yaw) + 180.0) % 360.0 - 180.0
+        rate = np.abs(step) / np.diff(times)
+        rate = rate[w[1:] & w[:-1]]
+        if np.any(rate[np.isfinite(rate)] > MAX_TURN_RATE_DEG_S):
+            return True
+    return False
+
+
 def _wrap180(a: float) -> float:
     return (a + 180.0) % 360.0 - 180.0
 
@@ -147,13 +163,18 @@ def measure(ct: CleanTrack, c: int, handedness: str, forward: np.ndarray | None,
     # Never measure from a cut-off backswing: the coil search must fit inside the analyzed frames.
     frame_dt = float(np.median(np.diff(ct.times))) if len(ct.times) > 1 else 0.0
     backswing_seen = ct.times[c] - COIL_SEARCH_S >= ct.times[0] - 1.5 * frame_dt
-    if backswing_seen:
+    side_swap = backswing_seen and _side_swap(W, ct.times, c)
+    if backswing_seen and not side_swap:
         sh_rot = _rotation_from_coil(sh_yaw, ct.times, c)
         hip_rot = _rotation_from_coil(hip_yaw, ct.times, c)
         if sh_rot is None:
             missing.append("Shoulder rotation: shoulders were not tracked confidently through the backswing.")
         if hip_rot is None:
             missing.append("Hip rotation: hips were not tracked confidently through the backswing.")
+    elif side_swap:
+        sh_rot = hip_rot = None
+        missing.append("Shoulder/hip rotation and hip-shoulder timing: tracking swapped the player's left and right "
+                       "sides during the backswing (common when the back turns to the camera).")
     else:
         sh_rot = hip_rot = None
         missing.append("Shoulder/hip rotation, hip-shoulder timing and forward-swing time: the backswing started "
@@ -181,7 +202,7 @@ def measure(ct: CleanTrack, c: int, handedness: str, forward: np.ndarray | None,
         ts = _half_turn_time(sh_yaw, ct.times, c, sh_rot[1])
         if th is not None and ts is not None:
             hip_lead = (ts - th) * 1000.0
-    if hip_lead is None and backswing_seen:
+    if hip_lead is None and backswing_seen and not side_swap:
         missing.append("Hip-shoulder timing: hips or shoulders were not tracked through the forward swing.")
 
     fwd = None

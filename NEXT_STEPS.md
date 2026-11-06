@@ -141,7 +141,11 @@ _Resume point for the tennis stroke analyzer. Update after every major step._
      - **Same-name clips** get separate output folders in the CLI.
      - **App messages** name the uploaded file (a sanitized name) instead of `input.mov`, with no exception class names.
      - The original samples are identical to step 6. The teammate clips run with no errors.
-   - 7b. [ ] Left/right swap makes impossible rotations (rule 1, also teammate issue A).
+   - **7b. [x] Left/right swap makes impossible rotations** (rule 1, also teammate issue A).
+     - If the shoulder or hip line turns faster than 1500°/s anywhere in the coil window, rotation and hip-shoulder timing are marked not measured, with a plain reason.
+     - Measured on all 6 clips: real swings peak at 163–808°/s, swaps at 4,563–9,353°/s.
+     - teammate1_fh #1/#2/#4, teammate1_bh #1/#2/#3/#5 and teammate2_bh #4 no longer show impossible 109–440° rotations.
+     - The original samples are identical.
    - 7c. [ ] Copy: garbled hip-lead consistency tip, one-swing grammar ("median of 1 forehands"), and the inconsistent tip calling the outlier "your best-measured" swing.
 
 ## Teammate clips (2026-11-05): teammate1_fh/teammate1_bh.mov and teammate2_fh/teammate2_bh.MOV, iPhone, H.264, -90° rotation, about 60 fps, right-handed
