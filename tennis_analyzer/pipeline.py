@@ -79,25 +79,47 @@ def frame_ref(frame: int, t: float) -> str:
 
 
 def _handedness_warning(ct: CleanTrack, swings: list[Swing], handedness: str) -> str | None:
-    """Flag when the 'other' wrist is clearly the fast one on one-handed swings."""
-    dom, other = wrist_ids(handedness)
+    """Warn when the swings look like they came from a player of the other hand.
+
+    One-handed swings: within +/-0.3 s of contact the hitting wrist reaches the higher peak speed. Measured on
+    the samples, the other/chosen ratio is 0.36-0.43 with the correct setting and 1.60-2.35 with the wrong one.
+    Two-handed swings: there the top hand legitimately moves as fast or faster, so they vote by label instead.
+    A flipped setting turns two-handed backhands into two-handed forehands, which are rare.
+    """
+    from scipy.ndimage import median_filter
     from . import kinematics as K
-    s_dom = K.speed(ct.xy[:, dom], ct.times)
-    s_oth = K.speed(ct.xy[:, other], ct.times)
-    votes = []
+    dom, other = wrist_ids(handedness)
+
+    def robust_speed(j: int) -> np.ndarray:
+        return median_filter(np.nan_to_num(K.speed(ct.xy[:, j], ct.times) / ct.torso_px, nan=0.0), 5)
+
+    s_dom, s_oth = robust_speed(dom), robust_speed(other)
+    votes = faster = two_hand_fh = 0
     for s in swings:
         if s.two_handed:
+            if s.stroke in ("forehand", "backhand"):
+                votes += 1
+                two_hand_fh += s.stroke == "forehand"
             continue
-        w = np.abs(ct.times - s.contact_time) <= 0.1
-        a, b = np.nanmax(s_dom[w], initial=np.nan), np.nanmax(s_oth[w], initial=np.nan)
-        if np.isfinite(a) and np.isfinite(b):
-            votes.append(b > 1.25 * a)
-    if len(votes) >= 2 and np.mean(votes) > 0.6:
-        other_hand = "left" if handedness == "right" else "right"
-        return (f"The {other_hand} wrist moved faster than the {handedness} wrist on {sum(votes)} of "
-                f"{len(votes)} one-handed swings. If the player is {other_hand}-handed, rerun with that "
-                "setting; forehand/backhand labels and arm measurements depend on it.")
-    return None
+        w = np.abs(ct.times - s.contact_time) <= 0.3
+        ratio = s_oth[w].max() / max(s_dom[w].max(), 1e-6)
+        if ratio > 1.25:
+            votes += 1
+            faster += 1
+        elif ratio < 0.8:
+            votes += 1
+    wrong = faster + two_hand_fh
+    if votes < 2 or wrong / votes <= 0.5:
+        return None
+    other_hand = "left" if handedness == "right" else "right"
+    reasons = []
+    if faster:
+        reasons.append(f"on {faster} one-handed swings the {other_hand} wrist moved fastest")
+    if two_hand_fh:
+        reasons.append(f"{two_hand_fh} came out as two-handed forehands, which are rare")
+    return (f"These swings look {other_hand}-handed: " + "; ".join(reasons) + ". "
+            f"If the player is {other_hand}-handed, switch the setting and analyze again. Stroke labels, arm "
+            "measurements and fixes all depend on it.")
 
 
 def analyze_video(path: str | Path, handedness: str, fast: bool = False,

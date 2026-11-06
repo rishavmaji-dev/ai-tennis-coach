@@ -94,7 +94,14 @@ _Resume point for the tennis stroke analyzer. Update after every major step._
    - Cramped elbows are still flagged at the low end.
    - Tests: `test_straight_arm_is_never_told_to_bend` (fails on the old code) and `test_cramped_elbow_near_low_edge_still_flagged`.
    - Sample fixes are unchanged.
-3. [ ] Wrong-handedness warning (item 9).
+3. [x] **Wrong-handedness warning (item 9).**
+   - The old check voted at the contact frame, but with the wrong setting the contacts come from the wrong wrist's own peaks.
+   - New rule:
+     - One-handed swings compare peak wrist speeds within ±0.3 s of contact. The other/chosen ratio is 0.36–0.43 when the setting is right and 1.60–2.35 when it is wrong.
+     - Two-handed swings vote by label, since a flipped setting makes them "two-handed forehands".
+   - Results on forehand.mp4, backhand.mp4 and the landscape 120 fps clip:
+     - `--hand right`: no warning on any clip.
+     - `--hand left`: a warning on all three.
 4. [ ] Backhand contact-frame timing (review #4).
 5. [ ] Re-exported portrait clips not detected (review #5).
 6. [ ] 30 fps smoothing (review #2).
