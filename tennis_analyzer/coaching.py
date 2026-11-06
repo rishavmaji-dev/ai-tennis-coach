@@ -115,6 +115,10 @@ def choose_references(session: SessionResult, ref_session: SessionResult | None 
         b = best_swing(swings, style)
         if b:
             refs[style] = Reference("own_best", style, b, session)
+        else:
+            notes.append(f"None of your {style_label(style)} had at least {MIN_JUDGED_FOR_BEST} of the "
+                         f"{len(RANGES[style])} measurements, so there's no side-by-side for them. Upload a "
+                         "reference clip, or film from the side so the body stays visible through the turn.")
     return refs, notes
 
 
