@@ -111,7 +111,16 @@ _Resume point for the tennis stroke analyzer. Update after every major step._
    - Verified with plots (`tmp/bh_curves.py`, `tmp/refine_check2.py`): all 11 backhand contacts sit on the clean top-hand speed peak.
    - Forehand contact frames are identical to before, and the forehand fixes are unchanged.
    - The Heavy window is now -1.05 s, derived from the constants.
-5. [ ] Re-exported portrait clips not detected (review #5).
+5. [x] **Re-exported portrait clips not detected (review #5): confirmed and fixed.**
+   - Cause: clips stored upright with no rotation flag (WhatsApp, editing apps) decode to row-padded arrays, for example 1632-byte rows for 540 px. MediaPipe ignores strides and saw a sheared image, so 0% detection.
+   - Fix:
+     - `video_io._upright` always returns packed arrays.
+     - `pose.py` re-packs before `mp.Image`.
+     - The pose cache key is versioned (`CACHE_VERSION = "v2"`), so empty tracks cached by v1 are never reused.
+   - Results:
+     - `tmp/review/fh_portrait_coded.mp4` now finds its swing at frame 79 with the same numbers as the original.
+     - A cold re-run of both samples gives output identical to step 4.
+     - New test `test_frames_are_packed_even_when_pyav_pads_rows` fails on the old code.
 6. [ ] 30 fps smoothing (review #2).
 7. [ ] Finish the CLAUDE.md rules / failure-handling review.
 

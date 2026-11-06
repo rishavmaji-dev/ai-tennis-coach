@@ -20,6 +20,7 @@ import mediapipe as mp  # noqa: E402  (after env vars)
 ROOT = Path(__file__).resolve().parent.parent
 MODELS_DIR = ROOT / "models"
 CACHE_DIR = ROOT / "out" / "cache"
+CACHE_VERSION = "v2"  # bump when frame decoding changes; v1 could cache empty tracks from padded frames
 MODEL_URL = ("https://storage.googleapis.com/mediapipe-models/pose_landmarker/"
              "pose_landmarker_{m}/float16/latest/pose_landmarker_{m}.task")
 MODELS = ("lite", "full", "heavy")
@@ -113,7 +114,7 @@ def track_pose(path: str | Path, info: VideoInfo, model: str = "lite", max_side:
                start_s: float | None = None, end_s: float | None = None,
                progress: ProgressFn | None = None, use_cache: bool = True) -> PoseTrack:
     """Run pose on every frame of the clip (or of [start_s, end_s])."""
-    key = f"{file_fingerprint(path)}_{model}_{max_side}"
+    key = f"{CACHE_VERSION}_{file_fingerprint(path)}_{model}_{max_side}"
     if start_s is not None or end_s is not None:
         key += f"_{start_s or 0:.3f}-{end_s or 0:.3f}"
     cache = CACHE_DIR / f"{key}.npz"
@@ -134,7 +135,8 @@ def track_pose(path: str | Path, info: VideoInfo, model: str = "lite", max_side:
             if ms <= last_ms:  # detect_for_video needs strictly increasing ms (matters at 240 fps)
                 ms = last_ms + 1
             last_ms = ms
-            res = lm.detect_for_video(mp.Image(image_format=mp.ImageFormat.SRGB, data=fr.rgb), ms)
+            rgb = np.ascontiguousarray(fr.rgb)  # MediaPipe ignores strides
+            res = lm.detect_for_video(mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb), ms)
             row = np.full((33, 5), np.nan, dtype=np.float32)
             wrow = np.full((33, 3), np.nan, dtype=np.float32)
             if res.pose_landmarks:

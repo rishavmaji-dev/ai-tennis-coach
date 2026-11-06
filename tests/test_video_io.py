@@ -66,3 +66,14 @@ def test_bad_files_raise_clear_error(tmp_path, content):
     p.write_bytes(content)
     with pytest.raises(VideoError):
         probe(p)
+
+
+def test_frames_are_packed_even_when_pyav_pads_rows(tmp_path):
+    """Upright-coded portrait clip (no rotation flag), scaled so width*3 isn't a multiple of 32."""
+    p = tmp_path / "portrait.mp4"
+    _write_clip(p, w=1080, h=1920, n=3, fps=30)
+    info = probe(p)
+    assert info.rotation == 0
+    fr = next(iter_frames(p, info.rotation, max_side=960))
+    assert fr.rgb.shape == (960, 540, 3)
+    assert fr.rgb.flags["C_CONTIGUOUS"]

@@ -95,8 +95,13 @@ def _capture_fps(meta: dict) -> float | None:
 
 
 def _upright(arr: np.ndarray, rotation: int) -> np.ndarray:
+    """Rotate to display orientation and always return a packed (C-contiguous) array.
+
+    PyAV pads rows (e.g. 540 px wide -> 1632-byte rows), and MediaPipe reads the buffer as packed, so a
+    padded frame looks sheared and no person is found. Rotated phone clips hid this because rot90 copies.
+    """
     k = (rotation or 0) // 90
-    return np.ascontiguousarray(np.rot90(arr, k)) if k % 4 else arr
+    return np.ascontiguousarray(np.rot90(arr, k) if k % 4 else arr)
 
 
 def probe(path: str | Path) -> VideoInfo:
