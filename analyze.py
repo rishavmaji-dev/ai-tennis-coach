@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import traceback
 from pathlib import Path
 
 VIDEO_EXT = {".mp4", ".mov", ".m4v", ".avi", ".mkv"}
@@ -92,9 +93,18 @@ def main(argv=None) -> int:
         print("No video files found.", file=sys.stderr)
         return 2
     failures = 0
+    used: set[str] = set()
     for p in paths:
+        key = p.stem  # one output folder per clip, even when two clips share a file name
+        if key.lower() in used:
+            key = f"{p.parent.name}_{p.stem}"
+            n = 2
+            while key.lower() in used:
+                key, n = f"{p.parent.name}_{p.stem}_{n}", n + 1
+        used.add(key.lower())
+        out_dir = Path(args.out) / key
         try:
-            report = run(p, args.hand, Path(args.out) / p.stem, fast=args.fast, reference=args.reference,
+            report = run(p, args.hand, out_dir, fast=args.fast, reference=args.reference,
                          reference_handedness=args.reference_hand, render_videos=not args.no_video,
                          progress=_progress, use_cache=not args.no_cache)
             sys.stderr.write("\n")
@@ -102,6 +112,17 @@ def main(argv=None) -> int:
         except AnalysisError as e:
             sys.stderr.write("\n")
             print(f"\n=== {p.name} ===\nCould not analyze: {e}")
+            failures += 1
+        except Exception as e:  # never a raw stack trace; keep going with the next clip
+            sys.stderr.write("\n")
+            log_path = out_dir / "error.log"
+            try:
+                out_dir.mkdir(parents=True, exist_ok=True)
+                log_path.write_text(traceback.format_exc(), encoding="utf-8")
+                where = f" Details are in {log_path}."
+            except OSError:
+                where = ""
+            print(f"\n=== {p.name} ===\nCould not finish this clip: {e}.{where}")
             failures += 1
     return 1 if failures else 0
 

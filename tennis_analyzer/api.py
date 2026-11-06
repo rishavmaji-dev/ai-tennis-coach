@@ -5,7 +5,9 @@ Both the CLI (analyze.py) and the Streamlit app call run().
 from __future__ import annotations
 
 import json
+import logging
 import time
+import traceback
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
@@ -14,6 +16,7 @@ from .coaching import Fix, Reference, choose_references, make_fixes
 from .pipeline import AnalysisError, SessionResult, analyze_video
 
 ProgressFn = Callable[[float, str], None]
+log = logging.getLogger("tennis_analyzer")
 
 
 @dataclass
@@ -68,13 +71,36 @@ def run(video: str | Path, handedness: str, out_dir: str | Path, fast: bool = Fa
     report = Report(session=session, references=refs, fixes=fixes, fixes_note=fixes_note, notes=notes,
                     reference_session=ref_session)
 
+    # The measurements are done. Nothing after this point may throw them away.
+    _write_report(report, out)
     if render_videos:
         from . import outputs as render
         t0 = time.time()
-        report.outputs.update(render.render_outputs(report, out, progress=sub(span[1], 1.0)))
+        try:
+            report.outputs.update(render.render_outputs(report, out, progress=sub(span[1], 1.0)))
+        except Exception as e:  # a locked file, a full disk... the analysis itself is still valid
+            try:  # details go to a file, never to the user's screen
+                (out / "error.log").write_text(traceback.format_exc(), encoding="utf-8")
+            except OSError:
+                pass
+            log.debug("Rendering failed: %s", traceback.format_exc())
+            report.notes.append(
+                f"Couldn't finish the annotated videos in {out} ({e}). A file there may be open in another "
+                "program, or the disk may be full. Close any player showing an old result and run again. "
+                "The measurements and fixes are complete.")
         session.timings_s["render"] = time.time() - t0
-
-    (out / "report.json").write_text(json.dumps(report.to_dict(), indent=2, default=float), encoding="utf-8")
-    report.outputs["report"] = str(out / "report.json")
+        _write_report(report, out)
     progress(1.0, "Done")
     return report
+
+
+def _write_report(report: Report, out: Path) -> None:
+    path = out / "report.json"
+    try:
+        path.write_text(json.dumps(report.to_dict(), indent=2, default=float), encoding="utf-8")
+        report.outputs["report"] = str(path)
+    except OSError as e:
+        note = (f"Couldn't save report.json in {out} ({e}). Check the disk has space and the folder is writable. "
+                "The results on screen are complete.")
+        if note not in report.notes:
+            report.notes.append(note)

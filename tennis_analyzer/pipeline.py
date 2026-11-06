@@ -153,9 +153,23 @@ def analyze_video(path: str | Path, handedness: str, fast: bool = False,
         info.variable_frame_rate = bool(np.std(dts) > 0.1 * np.median(dts) or
                                         abs(info.average_fps - info.nominal_fps) > 0.2)
     info.frame_count = len(track)
+    warnings: list[str] = []
+
+    # What was actually decoded, not what the container header claims.
+    span = float(track.times[-1] - track.times[0]) if len(track) > 1 else 0.0
+    if span < 1.0:
+        raise AnalysisError("This file holds less than a second of video, or a single picture. Upload the full "
+                            "clip straight from the phone.")
+    decoded_end = float(track.times[-1])
+    if not info.duration_s:
+        info.duration_s = decoded_end
+    elif decoded_end < 0.9 * info.duration_s and info.duration_s - decoded_end > 1.0:
+        warnings.append(f"Only the first {decoded_end:.1f} s of this {info.duration_s:.1f} s clip could be read. "
+                        "The file looks cut off or damaged, so any swings after that are missing. Copy or "
+                        "export the clip again.")
+        info.duration_s = decoded_end
 
     detected = float(track.detected.mean())
-    warnings: list[str] = []
     if detected < MIN_DETECTED_FRACTION:
         raise AnalysisError("No player was found in the video. Film the whole body, side-on or face-on, "
                             "with the player filling at least a third of the frame height.")

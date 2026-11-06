@@ -128,7 +128,21 @@ _Resume point for the tennis stroke analyzer. Update after every major step._
      - all 6 swings are found at the same times as at 60 fps;
      - most angles agree within a few degrees.
    - The 60 fps samples are unchanged (window still 7) and identical to step 5.
-7. [ ] Finish the CLAUDE.md rules / failure-handling review.
+7. [~] **Finish the CLAUDE.md rules / failure-handling review** (workflow wf_b8cdf85e-a65: 2 reviewers plus a skeptic per finding; repros in `tmp/review2/`).
+   - 9 findings confirmed and 2 rejected: an offline model download, and the "Your 3 fixes" heading with fewer fixes. Neither could be triggered with real input.
+   - **7a. [x] Failure handling (5 findings):**
+     - **Rendering or report failures no longer throw away a finished analysis.**
+       - `report.json` is written before rendering.
+       - A render failure (for example a locked file) becomes a plain note, and the traceback goes to `<out>/error.log`.
+       - The CLI catches any per-clip error and continues with the next clip.
+       - Repro `tmp/review2/locked.py`: the analysis survives and the run exits 0.
+     - **Truncated clip:** the decoded span is compared with the header duration, and a warning appears if the clip was cut short. `trunc60.mp4` warns "Only the first 13.5 s of this 25.0 s clip...".
+     - **Files with no timing** (a photo renamed .mov): a clear message replaces the ZeroDivisionError.
+     - **Same-name clips** get separate output folders in the CLI.
+     - **App messages** name the uploaded file (a sanitized name) instead of `input.mov`, with no exception class names.
+     - The original samples are identical to step 6. The teammate clips run with no errors.
+   - 7b. [ ] Left/right swap makes impossible rotations (rule 1, also teammate issue A).
+   - 7c. [ ] Copy: garbled hip-lead consistency tip, one-swing grammar ("median of 1 forehands"), and the inconsistent tip calling the outlier "your best-measured" swing.
 
 ## Teammate clips (2026-11-05): teammate1_fh/teammate1_bh.mov and teammate2_fh/teammate2_bh.MOV, iPhone, H.264, -90° rotation, about 60 fps, right-handed
 - Output: `tmp/teammates.txt` (CLI `--no-video`). The clips are gitignored.

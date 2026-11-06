@@ -6,6 +6,7 @@ and displays results.
 from __future__ import annotations
 
 import hashlib
+import re
 import logging
 import traceback
 from pathlib import Path
@@ -32,7 +33,10 @@ def save_upload(up) -> Path:
     data = up.getvalue()
     digest = hashlib.sha1(data).hexdigest()[:16]
     suffix = Path(up.name).suffix.lower() if Path(up.name).suffix.lower() in {f".{t}" for t in VIDEO_TYPES} else ".mp4"
-    path = UPLOADS / digest / f"input{suffix}"  # never trust the uploaded filename as a path
+    # Keep a sanitized version of the user's file name so messages name the file they uploaded,
+    # but never use the raw name as a path.
+    safe = re.sub(r"[^A-Za-z0-9._ -]", "_", Path(up.name).stem)[:60].strip(" .") or "clip"
+    path = UPLOADS / digest / f"{safe}{suffix}"
     if not path.exists():
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
@@ -98,7 +102,7 @@ if go and ready:
             log.error("Unexpected failure\n%s", traceback.format_exc())
             st.session_state.pop("report", None)
             status.update(label="Couldn't analyze this clip", state="error", expanded=True)
-            st.error(f"Something went wrong while analyzing this clip ({e.__class__.__name__}: {e}). "
+            st.error(f"Something went wrong while analyzing this clip: {e}. "
                      "Try re-exporting it from the phone as MP4, or trim it to the swings.")
 
 report: Report | None = st.session_state.get("report")
@@ -169,7 +173,8 @@ for style, ref in report.references.items():
                 render_comparison(s, pick, ref, path)
             except Exception as e:
                 log.error("Comparison render failed\n%s", traceback.format_exc())
-                st.error(f"Couldn't render this comparison ({e.__class__.__name__}).")
+                st.error(f"Couldn't render this comparison: {e}. Close any program using files in "
+                         f"{st.session_state['out_dir']} and pick the swing again.")
     if path.exists():
         vcol, tcol = st.columns([3, 2], gap="medium")
         with vcol:

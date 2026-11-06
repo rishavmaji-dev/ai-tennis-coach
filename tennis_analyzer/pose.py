@@ -125,7 +125,7 @@ def track_pose(path: str | Path, info: VideoInfo, model: str = "lite", max_side:
             cache.unlink(missing_ok=True)
 
     W, H = info.width, info.height
-    expected = info.frame_count if start_s is None and end_s is None else \
+    expected = max(1, info.frame_count) if start_s is None and end_s is None else \
         max(1, int(((end_s or info.duration_s) - (start_s or 0)) * info.nominal_fps))
     times, img, world = [], [], []
     last_ms = -1

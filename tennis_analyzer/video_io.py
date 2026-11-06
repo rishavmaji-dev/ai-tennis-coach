@@ -75,8 +75,7 @@ def _open(path: str | Path):
     try:
         container = av.open(str(p))
     except av.error.FFmpegError as e:  # InvalidDataError, etc.
-        raise VideoError(f"Can't read {p.name} as a video ({e.__class__.__name__}). "
-                         "Upload an MP4 or MOV straight from the phone.") from e
+        raise VideoError(f"Can't read {p.name} as a video. Upload an MP4 or MOV straight from the phone.") from e
     if not container.streams.video:
         container.close()
         raise VideoError(f"{p.name} has no video track.")
