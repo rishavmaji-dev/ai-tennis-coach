@@ -53,7 +53,8 @@ def print_report(report) -> None:
         print(f"Reference for {style}: {r.describe}")
     for n in report.notes + s.warnings:
         print(f"Note: {n}")
-    print(f"\nTop {len(report.fixes)} fixes:")
+    n = len(report.fixes)
+    print(f"\nTop {n} fix{'es' if n != 1 else ''}:")
     for f in report.fixes:
         print(f"  {f.rank}. {f.title}\n     {f.detail}")
     if report.fixes_note:

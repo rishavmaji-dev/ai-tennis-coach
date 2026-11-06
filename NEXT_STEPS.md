@@ -128,7 +128,7 @@ _Resume point for the tennis stroke analyzer. Update after every major step._
      - all 6 swings are found at the same times as at 60 fps;
      - most angles agree within a few degrees.
    - The 60 fps samples are unchanged (window still 7) and identical to step 5.
-7. [~] **Finish the CLAUDE.md rules / failure-handling review** (workflow wf_b8cdf85e-a65: 2 reviewers plus a skeptic per finding; repros in `tmp/review2/`).
+7. [x] **Finish the CLAUDE.md rules / failure-handling review** (workflow wf_b8cdf85e-a65: 2 reviewers plus a skeptic per finding; repros in `tmp/review2/`).
    - 9 findings confirmed and 2 rejected: an offline model download, and the "Your 3 fixes" heading with fewer fixes. Neither could be triggered with real input.
    - **7a. [x] Failure handling (5 findings):**
      - **Rendering or report failures no longer throw away a finished analysis.**
@@ -146,7 +146,13 @@ _Resume point for the tennis stroke analyzer. Update after every major step._
      - Measured on all 6 clips: real swings peak at 163–808°/s, swaps at 4,563–9,353°/s.
      - teammate1_fh #1/#2/#4, teammate1_bh #1/#2/#3/#5 and teammate2_bh #4 no longer show impossible 109–440° rotations.
      - The original samples are identical.
-   - 7c. [ ] Copy: garbled hip-lead consistency tip, one-swing grammar ("median of 1 forehands"), and the inconsistent tip calling the outlier "your best-measured" swing.
+   - **7c. [x] Wording.**
+     - **Consistency tips:** they read "a 188 ms spread … Your median (hips first by 39 ms) is inside…".
+     - **One measured swing:** the tip says "(swing #3, frame 634 (0:10.56), the only one of 4 forehands where this could be measured)" instead of "median of 1".
+     - **Consistency tips and the reference:** they no longer call the outlier swing "your best-measured".
+     - **The "fewer than 3 fixes" note** separates metrics that are in range from metrics that couldn't be measured. It used to claim unmeasured metrics were "comfortably inside".
+     - **Headings and counts:** "Your N fix(es)", "N swing(s)" and "Top N fix(es)" use the right singular or plural.
+     - New tests: `test_one_measured_swing_has_no_median_wording` and `test_hip_lead_spread_reads_plainly`. 29 pass.
 
 ## Teammate clips (2026-11-05): teammate1_fh/teammate1_bh.mov and teammate2_fh/teammate2_bh.MOV, iPhone, H.264, -90° rotation, about 60 fps, right-handed
 - Output: `tmp/teammates.txt` (CLI `--no-video`). The clips are gitignored.

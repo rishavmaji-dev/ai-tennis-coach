@@ -92,7 +92,8 @@ if go and ready:
             st.session_state["report"] = report
             st.session_state["out_dir"] = str(OUT / key)
             st.session_state["clip_name"] = up.name
-            status.update(label=f"Done: {len(report.session.swings)} swings analyzed", state="complete",
+            n_sw = len(report.session.swings)
+            status.update(label=f"Done: {n_sw} swing{'s' if n_sw != 1 else ''} analyzed", state="complete",
                           expanded=False)
         except AnalysisError as e:
             st.session_state.pop("report", None)
@@ -114,7 +115,8 @@ if report is None:
 s = report.session
 v = s.video
 st.divider()
-st.subheader(f"{st.session_state.get('clip_name', Path(v.path).name)}: {len(s.swings)} swings")
+st.subheader(f"{st.session_state.get('clip_name', Path(v.path).name)}: {len(s.swings)} "
+             f"swing{'s' if len(s.swings) != 1 else ''}")
 counts = {k: len(sw) for k, sw in groups(s).items()}
 st.caption(" · ".join(f"{n} {style_label(k) if n != 1 else style_label(k)[:-1]}" for k, n in counts.items())
            + f" · {s.handedness}-handed · {s.mode} mode")
@@ -133,7 +135,8 @@ c4.metric("Length", f"{v.duration_s:.1f} s", delta=f"{v.frame_count} frames", de
 for w in s.warnings + report.notes:
     st.warning(w)
 
-st.header("Your 3 fixes")
+n_fix = len(report.fixes)
+st.header("Your 3 fixes" if n_fix == 3 else (f"Your {n_fix} fix{'es' if n_fix != 1 else ''}" if n_fix else "Fixes"))
 st.caption("Ranked by how far each measurement sits outside general coaching ranges, or how much it varies "
            "between swings. Contact is the frame of peak hand speed.")
 if not report.fixes:

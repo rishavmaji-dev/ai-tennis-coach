@@ -57,6 +57,22 @@ def test_single_swing_has_no_own_reference():
     assert refs == {} and any("Only one" in n for n in notes)
 
 
+def test_one_measured_swing_has_no_median_wording():
+    s = session([swing(1, knee_bend_deg=5), swing(2, knee_bend_deg=None), swing(3, knee_bend_deg=None)])
+    fixes, _ = make_fixes(s, choose_references(s)[0])
+    knee = next(f for f in fixes if f.metric == "knee_bend_deg")
+    assert "median of 1" not in knee.detail
+    assert "the only one of 3 forehands" in knee.detail and "frame 60 (0:01.00)" in knee.detail
+
+
+def test_hip_lead_spread_reads_plainly():
+    s = session([swing(1, hip_lead_ms=-10), swing(2, hip_lead_ms=40), swing(3, hip_lead_ms=170)])
+    fixes, _ = make_fixes(s, choose_references(s)[0])
+    lead = next(f for f in fixes if f.metric == "hip_lead_ms")
+    assert lead.kind == "inconsistent"
+    assert "a 180 ms spread" in lead.detail and "hips first by 180 ms spread" not in lead.detail
+
+
 def test_straight_arm_is_never_told_to_bend():
     one_hander = [SwingResult(number=n, stroke="backhand", two_handed=False, contact_frame=60 * n,
                               contact_time=float(n), peak_speed=8, side_score=-0.3,

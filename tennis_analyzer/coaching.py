@@ -1,6 +1,7 @@
 """Reference-swing choice and the session's 3 fixes. Every fix cites measured values and frames."""
 from __future__ import annotations
 
+import re
 from dataclasses import asdict, dataclass
 
 import numpy as np
@@ -201,7 +202,7 @@ def _candidates(session: SessionResult, refs: dict[str, Reference]) -> list[Fix]
                 cands.append(Fix(rank=0, kind="out_of_range", title="", detail="", swing_number=s_k.number,
                                  frame=s_k.contact_frame, time=s_k.contact_time, swing_value=v_k,
                                  severity=1.0 + out / M.tolerance, **base))
-                cands[-1].detail = _render(cands[-1], direction, len(vals), s_k, ref)
+                cands[-1].detail = _render(cands[-1], direction, len(vals), s_k, ref, group_n=len(swings))
                 continue
             spread = float(v.max() - v.min())
             if len(vals) >= 3 and spread > M.spread_limit:
@@ -221,26 +222,33 @@ def _candidates(session: SessionResult, refs: dict[str, Reference]) -> list[Fix]
                 cands.append(Fix(rank=0, kind="near_edge", title="", detail="", swing_number=s_k.number,
                                  frame=s_k.contact_frame, time=s_k.contact_time, swing_value=v_k,
                                  severity=0.4 * (0.2 - margin) / 0.2, **base))
-                cands[-1].detail = _render(cands[-1], direction, len(vals), s_k, ref, near_edge=True)
+                cands[-1].detail = _render(cands[-1], direction, len(vals), s_k, ref, near_edge=True,
+                                           group_n=len(swings))
     return cands
 
 
 def _ref_suffix(fix: Fix, ref: Reference | None) -> str:
     if ref is None or fix.reference_value is None:
         return ""
-    if ref.source == "own_best" and ref.swing.number == fix.swing_number:
+    if ref.source == "own_best" and ref.swing.number == fix.swing_number and fix.kind != "inconsistent":
         return f" This is also your best-measured {style_label(fix.style)[:-1]} overall."
     return f" Reference, {ref.describe}: {METRICS[fix.metric].show(fix.reference_value)}."
 
 
 def _render(fix: Fix, direction: str, n: int, s_k: SwingResult, ref: Reference | None,
-            near_edge: bool = False) -> str:
+            near_edge: bool = False, group_n: int = 0) -> str:
     M = METRICS[fix.metric]
     title, body = TIPS[(fix.metric, direction)]
     lo, hi = fix.target
     text = body.format(arm=_arm(s_k), med=M.show(fix.session_value), n=n, style=style_label(fix.style),
                        k=fix.swing_number, fref=frame_ref(fix.frame, fix.time), val=M.show(fix.swing_value),
                        rng=M.show_range(lo, hi), lead_text=_lead_text(fix.session_value))
+    if n == 1:  # one measured swing: no "median of 1", no "the most cramped of 1"
+        where = f"swing #{fix.swing_number}, {frame_ref(fix.frame, fix.time)}"
+        if group_n > 1:
+            where += f", the only one of {group_n} {style_label(fix.style)} where this could be measured"
+        text = re.sub(r" \(median of 1 [^)]*\)[.;] [Ss]wing #\d+ at frame \d+ \([\d:.]+\)[^.]*\.",
+                      f" ({where}).", text, count=1)
     if near_edge:
         title = f"{title} (you're at the edge of the range)"
         text = (f"Inside the {M.show_range(lo, hi)} guideline, but close to the {direction} end. " + text)
@@ -252,11 +260,12 @@ def _render_spread(fix: Fix, vals: list, ref: Reference | None) -> str:
     M = METRICS[fix.metric]
     (s_lo, v_lo), (s_hi, v_hi) = min(vals, key=lambda t: t[1]), max(vals, key=lambda t: t[1])
     fix.title = f"Make your {M.label.lower()} repeatable"
-    text = (f"Across {len(vals)} {style_label(fix.style)} your {M.label.lower()} at contact ranged from "
+    when = "" if fix.metric == "hip_lead_ms" else " at contact"
+    text = (f"Across {len(vals)} {style_label(fix.style)} your {M.label.lower()}{when} ranged from "
             f"{M.show(v_lo)} (swing #{s_lo.number}, {frame_ref(s_lo.contact_frame, s_lo.contact_time)}) to "
             f"{M.show(v_hi)} (swing #{s_hi.number}, {frame_ref(s_hi.contact_frame, s_hi.contact_time)}), a "
-            f"{M.show(v_hi - v_lo)} spread. {SPREAD_CUE.get(fix.metric, '')}The median {M.show(fix.session_value)} "
-            f"is inside the {M.show_range(*fix.target)} guideline, so repeat that.")
+            f"{M.fmt.format(v_hi - v_lo)}{M.unit} spread. {SPREAD_CUE.get(fix.metric, '')}Your median "
+            f"({M.show(fix.session_value)}) is inside the {M.show_range(*fix.target)} guideline, so repeat that.")
     return text + _ref_suffix(fix, ref)
 
 
@@ -276,8 +285,25 @@ def make_fixes(session: SessionResult, refs: dict[str, Reference]) -> tuple[list
         f.rank = i
     note = None
     if len(chosen) < N_FIXES:
-        measured = {k for s in session.swings for k in METRICS if _value(s, k) is not None}
-        note = (f"Only {len(chosen)} fix{'es' if len(chosen) != 1 else ''} this session: the other measured "
-                f"metrics ({', '.join(METRICS[k].label.lower() for k in sorted(measured - used)) or 'none'}) are "
-                "comfortably inside their guideline ranges and consistent from swing to swing.")
+        grp = groups(session)
+        if not grp:
+            return chosen, "No fixes this session: no swing could be labeled forehand or backhand."
+        judged = {k for st in grp for k in RANGES[st]}
+        measured = {k for st, sw in grp.items() for s in sw for k in RANGES[st] if _value(s, k) is not None}
+        ok, unmeasured = sorted(measured - used), sorted(judged - measured)
+        parts = []
+        if ok:
+            parts.append(f"{_join(ok)} {'is' if len(ok) == 1 else 'are'} inside the guideline "
+                         f"range{'s' if len(ok) > 1 else ''} and consistent from swing to swing")
+        if unmeasured:
+            parts.append(f"{_join(unmeasured) if not parts else _join(unmeasured).lower()} couldn't be measured "
+                         "on these swings")
+        n = len(chosen)
+        note = (f"Only {n} fix{'es' if n != 1 else ''} this session. " + "; ".join(parts) + ".") if parts else None
     return chosen, note
+
+
+def _join(keys: list[str]) -> str:
+    labels = [METRICS[k].label.lower() for k in keys]
+    text = labels[0] if len(labels) == 1 else ", ".join(labels[:-1]) + " and " + labels[-1]
+    return text[0].upper() + text[1:]
