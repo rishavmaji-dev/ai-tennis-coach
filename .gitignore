@@ -1,11 +1,26 @@
+# Environment
 .venv/
-tmp/
-out/
-models/
 __pycache__/
 *.pyc
 .pytest_cache/
-samples/*.mp4
-samples/*.mov
-samples/*.MOV
-samples/*.m4v
+
+# Local data and generated files (never commit clips or anything derived from them)
+samples/
+out/
+tmp/
+models/
+
+# Video files anywhere in the repo
+*.mp4
+*.MP4
+*.mov
+*.MOV
+*.m4v
+*.M4V
+*.avi
+*.AVI
+*.mkv
+*.webm
+*.hevc
+*.h264
+*.3gp

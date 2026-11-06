@@ -154,6 +154,25 @@ _Resume point for the tennis stroke analyzer. Update after every major step._
      - **Headings and counts:** "Your N fix(es)", "N swing(s)" and "Top N fix(es)" use the right singular or plural.
      - New tests: `test_one_measured_swing_has_no_median_wording` and `test_hip_lead_spread_reads_plainly`. 29 pass.
 
+## Public-repo prep (2026-11-05)
+- **`.gitignore`** now covers `samples/`, `out/`, `tmp/`, `models/` and `.venv/`, plus every common video extension anywhere in the repo.
+- **History check:**
+  - No video file was ever committed.
+  - No local paths or personal emails appear; commits use the GitHub noreply address.
+- **Screenshots of a teammate removed from history.**
+  - The final-check commit had screenshots of a teammate's clip (teammate1_bh.mov). That commit was rebuilt without them, and the reflog was expired and gc'd.
+  - Those three image objects are confirmed gone from the repository.
+  - `docs/screenshots/` now shows only the owner's own forehand sample (fresh capture, current code). An older commit (4eb47a3) still has screenshots of the owner's own backhand sample.
+- **README.md written:**
+  - pitch and screenshot
+  - what it does
+  - how it works, in plain English
+  - how to run it
+  - filming tips
+  - known limitations, including false swings
+  - what's next
+- **Before pushing:** choose a LICENSE. None is included yet.
+
 ## Final check (2026-11-05, after steps 1–7)
 - **Full CLI with rendering on all 6 clips:** exit 0, 3m45s. Every output is h264 High, yuv420p, faststart, with true durations.
 - **Tests:** 29 pass.
