@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -54,7 +55,8 @@ def main() -> int:
             "radio", name="Right-handed" if args.hand == "right" else "Left-handed").click()
         page.screenshot(path=str(args.out / "01_ready.png"))
         page.get_by_role("button", name="Analyze").click()
-        page.get_by_role("heading", name="Your 3 fixes").wait_for(timeout=int(args.timeout_min * 60_000))
+        page.get_by_role("heading", name=re.compile(r"^(Your \d+ fix(es)?|Fixes)$")).wait_for(
+            timeout=int(args.timeout_min * 60_000))
         page.wait_for_timeout(3000)
         page.screenshot(path=str(args.out / "02_results_top.png"))
 
@@ -68,8 +70,6 @@ def main() -> int:
         page.set_viewport_size({"width": 1440, "height": min(int(height) + 200, 16000)})
         page.wait_for_timeout(2000)
         page.screenshot(path=str(args.out / "03_results_full.png"), full_page=True)
-        for name, heading in (("04_fixes.png", "Your 3 fixes"), ("05_side_by_side.png", "Side-by-side at contact")):
-            page.get_by_role("heading", name=heading).scroll_into_view_if_needed()
         browser.close()
 
     bad = [c for c in checks if c["readyState"] < 2 or c["error"] or not c["width"]]

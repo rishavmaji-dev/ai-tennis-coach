@@ -154,11 +154,24 @@ _Resume point for the tennis stroke analyzer. Update after every major step._
      - **Headings and counts:** "Your N fix(es)", "N swing(s)" and "Top N fix(es)" use the right singular or plural.
      - New tests: `test_one_measured_swing_has_no_median_wording` and `test_hip_lead_spread_reads_plainly`. 29 pass.
 
+## Final check (2026-11-05, after steps 1–7)
+- **Full CLI with rendering on all 6 clips:** exit 0, 3m45s. Every output is h264 High, yuv420p, faststart, with true durations.
+- **Tests:** 29 pass.
+- **Playwright, real Chrome, fresh app instance on port 8502, teammate1_bh.mov:**
+  - It shows "Your 1 fix", an honest note, and the uploaded file name.
+  - The annotated video decodes.
+  - Screenshots are in `docs/screenshots/`.
+- **Added during the final run:** a note explaining why there's no side-by-side when no swing has 4 or more measurements.
+- **Restart running instances:** an app instance already running on 8501 had older code loaded. Restart the app to pick up today's fixes.
+- **Still open:**
+  - Teammate issue B: false swings from walking or camera panning, and teammate2_bh #5 mislabeled.
+  - Low-priority review items 6–8 (slow-motion capture tag, fps from quantized intervals, comparison H.264 level).
+
 ## Teammate clips (2026-11-05): teammate1_fh/teammate1_bh.mov and teammate2_fh/teammate2_bh.MOV, iPhone, H.264, -90° rotation, about 60 fps, right-handed
 - Output: `tmp/teammates.txt` (CLI `--no-video`). The clips are gitignored.
 - Nothing crashed. Every clip got swings, labels and 3 cited fixes, with no false handedness warning.
 - **Looks off (not fixed yet):**
-  - **A. Impossible rotations on face-on clips.** Shoulders turned 144–225° on teammate1_fh, and hips 243°/440° on teammate1_bh #1/#5.
+  - **A. [FIXED in 7b] Impossible rotations on face-on clips.** Shoulders turned 144–225° on teammate1_fh, and hips 243°/440° on teammate1_bh #1/#5.
     - Cause: MediaPipe swaps left and right as the player turns. The shoulder line jumps 61–81° in one frame (about 4,000°/s; real rotation is at most about 17° per frame), and `unwrap_deg` counts each swap as about 180° of rotation.
     - These values drive wrong top fixes: teammate1_fh #1 "Stop over-spinning the shoulders" and #2, and teammate1_bh #1 "Keep the hips more stable".
     - Clean swings are plausible, for example teammate1_fh #3 at 52°.
@@ -171,7 +184,7 @@ _Resume point for the tennis stroke analyzer. Update after every major step._
     - The false swings create a fake "forehand" group in a backhand clip, which drives teammate2_bh fix #3.
     - Cause: detection uses 2D hand speed in image coordinates, so body or camera motion counts as hand speed.
     - Fix plan: detect on hand speed relative to the hip centre. That needs a re-check on all 6 clips.
-  - **C. Copy bugs.**
+  - **C. [FIXED in 7c] Copy bugs.**
     - The hip-lead consistency tip reads "a hips first by 188 ms spread".
     - With one swing, tips read "median of 1 forehands".
 
